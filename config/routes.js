@@ -1,4 +1,9 @@
+require("dotenv").config();
+
 const axios = require("axios");
+const bcrypt = require("bcryptjs");
+const users = require("../database/dbConfig");
+const jwt = require("jsonwebtoken");
 
 const { authenticate } = require("../auth/authenticate");
 
@@ -8,24 +13,58 @@ module.exports = server => {
   server.get("/api/jokes", authenticate, getJokes);
 };
 
+const getToken = user => {
+  const payload = {
+    username: user.username
+  };
+
+  const secret = process.env.JWT_SECRET;
+
+  const options = {
+    expiresIn: "6h",
+    jwtid: "0000001"
+  };
+
+  return jwt.sign(payload, secret, options);
+};
+
 function register(req, res) {
   // implement user registration
   let user = req.body;
-  const hash = bcrypt.hashSync(user.password, 10);
-  user.password = hash;
-
-  Users.add(user)
-    .then(saved => {
-      req.session.user = saved;
-      res.status(201).json(saved);
-    })
-    .catch(err => {
-      res.status(500).json(error);
-    });
+  user.password = bcrypt.hashSync(user.password, 8)
+  console.log(user)
+  users('users')
+    .insert(user)
+    .then(ids => {
+     res.json({id: ids[0]})
+       })
+    .catch((err) => {
+     res
+      .status(500)
+      .json(error)
+     })
 }
 
 function login(req, res) {
   // implement user login
+  const user = req.body
+  users('users')
+  .where('username', user.username)
+  .then((users) => {
+   if (users.length && bcrypt.compareSync(user.password, users[0].password)) {
+    const token = getToken(user)
+    res.json({message: `Welcome ${user.username}!, Here's a *token* of my gratitude for loggin in lol`, token})
+     }
+     else {
+      res.status(401)
+         .json({message: "either your username or passwprd is invalid"})
+     }
+    })
+    .catch((error) => {
+     res
+      .status(400)
+      .json(error)
+    })
 }
 
 function getJokes(req, res) {
