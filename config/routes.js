@@ -49,7 +49,7 @@ function login(req, res) {
   // implement user login
   const user = req.body
   users('users')
-  .where('username', user.username)
+  .where('username', user.username).first()
   .then((users) => {
    if (users.length && bcrypt.compareSync(user.password, users[0].password)) {
     const token = getToken(user)
